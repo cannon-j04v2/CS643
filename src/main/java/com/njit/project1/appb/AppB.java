@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.Message;
 
-public class AppB {
+public final class AppB {
     public static void main(String[] args) {
         System.out.println("AppB started.");
         String bucketName = Config.getBucketName();

@@ -26,8 +26,8 @@ public final class Config {
 
     public static List<String> getImageKeys() {
         List<String> imageKeys = new ArrayList<>();
-        for (int i = 1; i <= 10; i++) {
-            imageKeys.add(i + ".jpg");
+        for (int imageNumber = 1; imageNumber <= 10; imageNumber++) {
+            imageKeys.add(imageNumber + ".jpg");
         }
         return imageKeys;
     }
