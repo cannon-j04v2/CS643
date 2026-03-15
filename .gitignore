@@ -1,0 +1,11 @@
+target/
+.idea/
+*.class
+output.txt
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
