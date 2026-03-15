@@ -35,9 +35,7 @@ public final class Config {
     private static String readRequiredEnv(String key) {
         String value = System.getenv(key);
         if (value == null || value.trim().isBlank()) {
-            throw new IllegalStateException(
-                    "Missing required environment variable: " + key + ". Please export SQS_QUEUE_URL before running AppA/AppB."
-            );
+            throw new IllegalStateException("Missing required environment variable: " + key + ". Please export SQS_QUEUE_URL before running AppA/AppB.");
         }
         return value.trim();
     }

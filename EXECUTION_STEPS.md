@@ -1,8 +1,8 @@
 # Execution Steps for the CS643 Project1 Codebase
 
-This repository currently contains assignment implementation requirements in `instruct.md`.
-
-To execute the intended Java Maven project on two EC2 nodes after implementation, follow these steps.
+This repository implements two apps for EC2 deployment:
+- `AppA` on node_1
+- `AppB` on node_2
 
 ## 1) Prerequisites
 - Java 17 installed on both EC2 nodes.
