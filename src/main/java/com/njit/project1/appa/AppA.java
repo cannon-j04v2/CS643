@@ -10,7 +10,7 @@ import software.amazon.awssdk.services.rekognition.RekognitionClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 
-public class AppA {
+public final class AppA {
     public static void main(String[] args) {
         System.out.println("AppA started.");
         String bucketName = Config.getBucketName();
