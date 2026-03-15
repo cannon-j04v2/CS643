@@ -59,94 +59,160 @@ On both EC2 instances:
 4. Ensure SQS FIFO queue already exists and has content-based deduplication enabled.
 5. Ensure bucket `cs643-njit-project1` contains `1.jpg` through `10.jpg`.
 
-## AWS Credentials and Config
-AWS SDK v2 uses the default provider chains. You do **not** need to hardcode credentials or region in Java code.
+## Cloud Infrastructure and Runtime Setup
 
-Example `~/.aws/credentials`:
-```ini
-[default]
-aws_access_key_id=<FMI_1>
-aws_secret_access_key=<FMI_2>
-aws_session_token=<FMI_3>
+This project uses:
+- **2 Amazon EC2 instances**
+- **1 Amazon SQS FIFO queue**
+- **AWS Rekognition**
+- **A public S3 bucket**: `cs643-njit-project1`
+
+### 1. Create the SQS Queue
+Create an **SQS FIFO queue**.
+
+Recommended settings:
+- **Queue type**: FIFO
+- **Content-based deduplication**: Enabled
+- **Purpose**: preserve message order and avoid manually generating deduplication IDs
+
+After creating the queue, save the queue URL. It will be used later as `SQS_QUEUE_URL`.
+
+### 2. Launch the EC2 Instances
+Launch **two Amazon Linux EC2 instances**.
+
+Suggested names:
+- `node_1`
+- `node_2`
+
+Recommended setup:
+- **AMI**: Amazon Linux
+- **Instance type**: a small instance is sufficient for this project
+- **Public IP**: enabled
+- **Key pair**: use the same key pair for both instances
+- **Security group**: select the default security group, then update inbound rules
+
+### 3. Update the Security Group
+Edit the inbound rules for the security group used by both instances.
+
+Required rule:
+- **SSH**
+  - Protocol: TCP
+  - Port: `22`
+  - Source: **My IP**
+
+Outbound rules can remain at the default settings.
+
+### 4. SSH Into Each EC2 Instance
+Use **PuTTY** and the `.ppk` file for your key pair.
+
+For Amazon Linux, log in as:
+```bash
+ec2-user
 ```
 
-Example `~/.aws/config`:
+### 5. Install Required Software
+Run these commands on both VMs:
+
+```bash
+whoami
+sudo dnf update -y
+sudo dnf install -y java-17-amazon-corretto-devel maven git awscli
+
+java -version
+mvn -version
+aws --version
+git --version
+```
+
+### 6. Configure AWS Credentials
+Create the AWS configuration directory:
+
+```bash
+mkdir -p ~/.aws
+```
+
+Edit the credentials file:
+
+```bash
+vim ~/.aws/credentials
+```
+
+Add:
+
 ```ini
 [default]
-region=<FMI_4>
+aws_access_key_id=YOUR_ACCESS_KEY_ID
+aws_secret_access_key=YOUR_SECRET_ACCESS_KEY
+aws_session_token=YOUR_SESSION_TOKEN
+```
+
+These values come from the AWS Details section in Learner Lab.
+
+Edit the config file:
+
+```bash
+vim ~/.aws/config
+```
+
+Add:
+
+```ini
+[default]
+region=us-east-1
 output=json
 ```
 
-## Environment Variables
-`SQS_QUEUE_URL` is required.
+Make sure the region matches where your EC2 instances and SQS queue were created.
 
-Optional region override:
+### 7. Verify AWS Access
 ```bash
-export AWS_REGION=<FMI_4>
+aws sts get-caller-identity
 ```
 
-Required queue URL:
+### 8. Set SQS Queue URL
+Temporary:
+
 ```bash
-export SQS_QUEUE_URL=<FMI_5>
+export SQS_QUEUE_URL=YOUR_FIFO_QUEUE_URL
 ```
 
-## Build
-From the repository root:
+Persistent:
+
+```bash
+echo 'export SQS_QUEUE_URL=https://sqs.us-east-1.amazonaws.com/YOUR_ACCOUNT_ID/YOUR_QUEUE_NAME.fifo' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 9. Clone Repository
+Clone the project on both EC2 instances:
+
+```bash
+git clone https://github.com/cannon-j04v2/CS643.git
+cd CS643
+```
+
+### 10. Build the Project
 ```bash
 mvn clean package
 ```
 
-This produces a runnable shaded jar:
-- `target/project1-1.0-SNAPSHOT-all.jar`
+### 11. Run Applications
+On `node_2`:
 
-## Run Instructions
-### 1) Recommended (region from `~/.aws/config`)
-Run AppB on node_2:
 ```bash
-mvn clean package
-export SQS_QUEUE_URL=<FMI_5>
 java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appb.AppB
 ```
 
-Run AppA on node_1:
+On `node_1`:
+
 ```bash
-mvn clean package
-export SQS_QUEUE_URL=<FMI_5>
 java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appa.AppA
 ```
 
-### 2) Optional (manual env region override)
-Run AppB on node_2:
-```bash
-mvn clean package
-export AWS_REGION=<FMI_4>
-export SQS_QUEUE_URL=<FMI_5>
-java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appb.AppB
-```
-
-Run AppA on node_1:
-```bash
-mvn clean package
-export AWS_REGION=<FMI_4>
-export SQS_QUEUE_URL=<FMI_5>
-java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appa.AppA
-```
-
-## FIFO Queue Notes
-- Use an **SQS FIFO queue** (URL should end with `.fifo`).
-- App messages use message group id `project1`.
-- Queue creation is not handled by this code.
-- Assume the queue already has content-based deduplication enabled.
-
-## output.txt Notes
-- File is created automatically if missing.
-- Written by AppB in this format:
-  - `3.jpg : ABC123, PARKING, LOT 7`
-- A line is appended only when high-confidence text is detected.
-
-## Troubleshooting
-- **Missing env var error:** Ensure `SQS_QUEUE_URL` is exported before running AppA/AppB.
-- **Credentials errors:** Verify `~/.aws/credentials` is set for the executing user or attach an EC2 IAM role.
-- **Region errors:** Verify `~/.aws/config` has a default region, or export `AWS_REGION=<FMI_4>`.
-- **No messages in AppB:** Confirm AppA is running and queue URL is correct.
-- **No output lines:** Could be no car detections from AppA or no high-confidence text from AppB.
+### 12. Expected Runtime Behavior
+- AppA checks images `1.jpg` through `10.jpg` from the public S3 bucket.
+- If a car is detected with confidence greater than 80, AppA sends the image name to SQS.
+- After all images are processed, AppA sends `-1` to the queue.
+- AppB reads messages from SQS.
+- If text is detected with confidence greater than 80, AppB writes the image name and text to `output.txt`.
+- When AppB receives `-1`, it shuts down cleanly.
