@@ -25,8 +25,10 @@ The design works whether AppA starts first or AppB starts first.
 - Maven
 - AWS SDK for Java v2
 - Shared helper classes in `com.njit.project1.common`
-- AWS default credentials provider chain (no hardcoded credentials)
-- Region and queue URL read from environment variables
+- AWS credentials resolved automatically from `~/.aws/credentials` (or EC2 role)
+- AWS region resolved automatically from `~/.aws/config` (or EC2 metadata)
+- Optional `AWS_REGION` env var override
+- Required `SQS_QUEUE_URL` env var
 - SQS FIFO send uses fixed message group id: `project1`
 
 ## Repository Structure
@@ -54,10 +56,12 @@ On both EC2 instances:
 1. Install Java 17.
 2. Install Maven.
 3. Configure AWS credentials and config files.
-4. Ensure SQS FIFO queue already exists.
+4. Ensure SQS FIFO queue already exists and has content-based deduplication enabled.
 5. Ensure bucket `cs643-njit-project1` contains `1.jpg` through `10.jpg`.
 
 ## AWS Credentials and Config
+AWS SDK v2 uses the default provider chains. You do **not** need to hardcode credentials or region in Java code.
+
 Example `~/.aws/credentials`:
 ```ini
 [default]
@@ -74,9 +78,15 @@ output=json
 ```
 
 ## Environment Variables
-Example environment variables before running either app:
+`SQS_QUEUE_URL` is required.
+
+Optional region override:
 ```bash
 export AWS_REGION=<FMI_4>
+```
+
+Required queue URL:
+```bash
 export SQS_QUEUE_URL=<FMI_5>
 ```
 
@@ -86,25 +96,47 @@ From the repository root:
 mvn clean package
 ```
 
-## Run AppB on node_2
+This produces a runnable shaded jar:
+- `target/project1-1.0-SNAPSHOT-all.jar`
+
+## Run Instructions
+### 1) Recommended (region from `~/.aws/config`)
+Run AppB on node_2:
 ```bash
-export AWS_REGION=<FMI_4>
+mvn clean package
 export SQS_QUEUE_URL=<FMI_5>
-java -cp target/project1-1.0-SNAPSHOT.jar com.njit.project1.appb.AppB
+java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appb.AppB
 ```
 
-## Run AppA on node_1
+Run AppA on node_1:
 ```bash
+mvn clean package
+export SQS_QUEUE_URL=<FMI_5>
+java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appa.AppA
+```
+
+### 2) Optional (manual env region override)
+Run AppB on node_2:
+```bash
+mvn clean package
 export AWS_REGION=<FMI_4>
 export SQS_QUEUE_URL=<FMI_5>
-java -cp target/project1-1.0-SNAPSHOT.jar com.njit.project1.appa.AppA
+java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appb.AppB
+```
+
+Run AppA on node_1:
+```bash
+mvn clean package
+export AWS_REGION=<FMI_4>
+export SQS_QUEUE_URL=<FMI_5>
+java -cp target/project1-1.0-SNAPSHOT-all.jar com.njit.project1.appa.AppA
 ```
 
 ## FIFO Queue Notes
 - Use an **SQS FIFO queue** (URL should end with `.fifo`).
 - App messages use message group id `project1`.
 - Queue creation is not handled by this code.
-- Content-based deduplication is recommended on the queue.
+- Assume the queue already has content-based deduplication enabled.
 
 ## output.txt Notes
 - File is created automatically if missing.
@@ -113,8 +145,8 @@ java -cp target/project1-1.0-SNAPSHOT.jar com.njit.project1.appa.AppA
 - A line is appended only when high-confidence text is detected.
 
 ## Troubleshooting
-- **Missing env var error:** Ensure both `AWS_REGION` and `SQS_QUEUE_URL` are exported.
-- **Credentials errors:** Verify `~/.aws/credentials` and `~/.aws/config` are set for the executing user.
+- **Missing env var error:** Ensure `SQS_QUEUE_URL` is exported before running AppA/AppB.
+- **Credentials errors:** Verify `~/.aws/credentials` is set for the executing user or attach an EC2 IAM role.
+- **Region errors:** Verify `~/.aws/config` has a default region, or export `AWS_REGION=<FMI_4>`.
 - **No messages in AppB:** Confirm AppA is running and queue URL is correct.
 - **No output lines:** Could be no car detections from AppA or no high-confidence text from AppB.
-- **Region mismatch:** Ensure queue/bucket access aligns with `<FMI_4>`.

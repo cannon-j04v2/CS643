@@ -3,7 +3,6 @@ package com.njit.project1.common;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import software.amazon.awssdk.regions.Region;
 
 public final class Config {
     private static final String BUCKET_NAME = "cs643-njit-project1";
@@ -11,13 +10,14 @@ public final class Config {
     private Config() {
     }
 
-    public static Region getRegion() {
-        String regionValue = readRequiredEnv("AWS_REGION");
-        return Region.of(regionValue);
-    }
-
     public static String getQueueUrl() {
         return readRequiredEnv("SQS_QUEUE_URL");
+    }
+
+    public static Optional<String> getOptionalRegion() {
+        return Optional.ofNullable(System.getenv("AWS_REGION"))
+                .map(String::trim)
+                .filter(value -> !value.isBlank());
     }
 
     public static String getBucketName() {
@@ -33,10 +33,12 @@ public final class Config {
     }
 
     private static String readRequiredEnv(String key) {
-        Optional<String> value = Optional.ofNullable(System.getenv(key)).map(String::trim);
-        if (value.isEmpty() || value.get().isBlank()) {
-            throw new IllegalStateException("Missing required environment variable: " + key);
+        String value = System.getenv(key);
+        if (value == null || value.trim().isBlank()) {
+            throw new IllegalStateException(
+                    "Missing required environment variable: " + key + ". Please export SQS_QUEUE_URL before running AppA/AppB."
+            );
         }
-        return value.get();
+        return value.trim();
     }
 }
